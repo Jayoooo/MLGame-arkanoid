@@ -10,9 +10,7 @@ from games.arkanoid.communication import ( \
 def ml_loop():
     """
     The main loop of the machine learning process
-
     This loop is run in a separate process, and communicates with the game process.
-
     Note that the game process won't wait for the ml process to generate the
     GameInstruction. It is possible that the frame of the GameInstruction
     is behind of the current frame in the game process. Try to decrease the fps
@@ -43,14 +41,61 @@ def ml_loop():
             continue
 
         # 3.3. Put the code here to handle the scene information
-        
+
         # 3.4. Send the instruction for this frame to the game process
         if not ball_served:
-            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_LEFT)
+            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_RIGHT)
             ball_served = True
+
+            x_prev = scene_info.ball[0]
+            y_prev = scene_info.ball[1]
+            x_update = 80
+
         else:
-            if scene_info.ball[1] > 170:
-                if scene_info.ball[0] < 55:
+            x_curr = scene_info.ball[0]
+            y_curr = scene_info.ball[1]
+
+            if(y_curr < 10 or y_curr - y_prev < 0): # do not move when ball is up there breaking bricks.
+                x_update = 80
+                if(scene_info.platform[0] < 80):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+                elif(scene_info.platform[0] > 80):    
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 else:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+            else:
+                if(x_curr == 0):
+                    y_hit_point = y_curr
+                    if(y_hit_point < 205): # will hit again on the other side
+                        y_hit_point += 195
+                        x_update = 195 - (400 - y_hit_point) - (40 / 2)
+                    else:    
+                        x_update = (400 - y_hit_point) - (40 / 2)
+                    # print(x_update)
+
+                elif(x_curr == 195):
+                    y_hit_point = y_curr
+                    if(y_hit_point < 205):
+                        y_hit_point += 195
+                        x_update = (400 - y_hit_point) - (40 / 2)
+                    else:    
+                        x_update = 195 - (400 - y_hit_point) - (40 / 2) # bias
+                    # print(x_update)
+
+                if(x_update < 0):
+                    x_update = 0
+                elif(x_update > 195):
+                    x_update = 195
+
+                while(x_update % 5 != 0):
+                    x_update += 1 # for movimg plateform smoothly 
+
+                if(scene_info.platform[0] > x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                elif(scene_info.platform[0] < x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)  
+                else:
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+
+            x_prev = x_curr
+            y_prev = y_curr        
