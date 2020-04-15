@@ -20,7 +20,9 @@ def ml_loop():
     # === Here is the execution order of the loop === #
     # 1. Put the initialization code here.
     ball_served = False
-
+    ball_x=100
+    ball_y=400
+    dir_x=0
     # 2. Inform the game process that ml process is ready before start the loop.
     comm.ml_ready()
 
@@ -41,81 +43,37 @@ def ml_loop():
             continue
 
         # 3.3. Put the code here to handle the scene information
+        
+
 
         # 3.4. Send the instruction for this frame to the game process
         if not ball_served:
-            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_RIGHT)
+            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_LEFT)
             ball_served = True
-
-            x_prev = scene_info.ball[0]
-            y_prev = scene_info.ball[1]
-            x_update = 10
-            hit_count = -1
-
         else:
-            x_curr = scene_info.ball[0]
-            y_curr = scene_info.ball[1]
-
-            if(y_curr == scene_info.platform[1] - 5):
-                hit_count += 1
-                if(hit_count == 11):
-                    x_update = 160
-                if(hit_count == 15):
-                    x_update = 80
-                if(hit_count == 18):
-                    x_update = 30
-                if(hit_count == 19):
-                    x_update = 50
-                if(hit_count == 20):
-                    x_update = 100
-                if(hit_count == 21):
-                    x_update = 150
-                if(hit_count == 28):
-                    x_update = 150
-                    
-            elif(y_curr < 10 or y_curr - y_prev < 0): # do not move when ball is up there breaking bricks.
-                
-                if(scene_info.platform[0] < x_update):
+            if dir_x*(scene_info.ball[0]-ball_x)<0:
+                dir_x=-dir_x
+            else:
+                dir_x=scene_info.ball[0]-ball_x
+            dir_y=scene_info.ball[1]-ball_y
+            ball_x=scene_info.ball[0]
+            ball_y=scene_info.ball[1]
+            if dir_y>0:
+                pla_x=(400-scene_info.ball[1])*(dir_x/dir_y)+scene_info.ball[0]
+                if pla_x>200:
+                    pla_x=200-(pla_x-200)
+                if pla_x<0:
+                    pla_x=0-pla_x    
+                if pla_x>scene_info.platform[0]+40:                   
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif(scene_info.platform[0] > x_update):    
+                elif pla_x<scene_info.platform[0]:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 else:
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)    
-            
-            else:   
-                if(hit_count != 20):
-                    if(x_curr == 0):
-                        y_hit_point = y_curr
-                        if(y_hit_point < 205): # will hit again on the other side
-                            y_hit_point += 195
-                            x_update = 195 - (400 - y_hit_point) - (40 / 2)
-                        else:    
-                            x_update = (400 - y_hit_point) - (40 / 2)
-                        # print(x_update)
-
-                    elif(x_curr == 195):
-                        y_hit_point = y_curr
-                        if(y_hit_point < 205):
-                            y_hit_point += 195
-                            x_update = (400 - y_hit_point) - (40 / 2)
-                        else:    
-                            x_update = 195 - (400 - y_hit_point) - (40 / 2) # bias
-                        # print(x_update)
-
-                    if(x_update < 0):
-                        x_update = 0
-                    elif(x_update > 195):
-                        x_update = 195
-
-                    while(x_update % 5 != 0):
-                        x_update += 1 # for moving plateform smoothly 
-
-                if(scene_info.platform[0] > x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE) 
+            else:             
+                if 80<scene_info.platform[0]:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                elif(scene_info.platform[0] < x_update):
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)  
+                elif 80>scene_info.platform[0]:
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT) 
                 else:
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
-
-            x_prev = x_curr
-            y_prev = y_curr
+                   comm.send_instruction(scene_info.frame, PlatformAction.NONE)
