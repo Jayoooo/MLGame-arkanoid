@@ -60,15 +60,7 @@ def ml_loop():
             ball_x = scene_info.ball[0]
             ball_y = scene_info.ball[1]
             
-            if y_diff < 0: #ball up, fix the platform
-                if scene_info.platform[0] > 80:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                elif scene_info.platform[0] < 80:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT) 
-                else:
-                   comm.send_instruction(scene_info.frame, PlatformAction.NONE)
-                 
-            else: #ball down
+            if y_diff > 0: #ball down
                 plat_x = (400 - scene_info.ball[1])*(x_diff/y_diff) + scene_info.ball[0]
                 if plat_x > 200:
                     plat_x = 400 - plat_x
@@ -79,5 +71,11 @@ def ml_loop():
                 elif pla_x < scene_info.platform[0]:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 else:
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
-                 
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE) 
+            else: #ball up, fix the platform
+                if scene_info.platform[0] > 80:
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                elif scene_info.platform[0] < 80:
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT) 
+                else:
+                   comm.send_instruction(scene_info.frame, PlatformAction.NONE)
