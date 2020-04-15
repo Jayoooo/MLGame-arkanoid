@@ -44,52 +44,78 @@ def ml_loop():
 
         # 3.4. Send the instruction for this frame to the game process
         if not ball_served:
-            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_LEFT)
+            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_RIGHT)
             ball_served = True
-            bounce_to_left = False
-            bounce_to_right = False
-            distance = 0
-        else:
-            ball_x = scene_info.ball[0]
-            ball_y = scene_info.ball[1]
-            platform_x = scene_info.platform[0]
-            platform_y = scene_info.platform[1]            
 
-            if platform_y - ball_y > 285:
-                bounce_to_left = False
-                bounce_to_right = False
-                distance = 0                                              
-                # modify        
-                if platform_x < 75:
+            x_prev = scene_info.ball[0]
+            y_prev = scene_info.ball[1]
+            x_update = 10
+            hit_count = -1
+
+        else:
+            x_curr = scene_info.ball[0]
+            y_curr = scene_info.ball[1]
+
+            if(y_curr == scene_info.platform[1] - 5):
+                hit_count += 1
+                if(hit_count == 11):
+                    x_update = 160
+                if(hit_count == 15):
+                    x_update = 80
+                if(hit_count == 18):
+                    x_update = 30
+                if(hit_count == 19):
+                    x_update = 50
+                if(hit_count == 20):
+                    x_update = 100
+                if(hit_count == 21):
+                    x_update = 150
+                if(hit_count == 28):
+                    x_update = 150
+                    
+            elif(y_curr < 10 or y_curr - y_prev < 0): # do not move when ball is up there breaking bricks.
+                
+                if(scene_info.platform[0] < x_update):
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif platform_x > 75:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)                
-            elif platform_y - ball_y <= 285 and platform_y - ball_y > 200:
-                if ball_x == 0:
-                    bounce_to_left = True                    
-                    distance = platform_y - ball_y - 195                                         
-                elif ball_x == 195:
-                    bounce_to_right = True         
-                    distance = platform_y - ball_y - 195                                     
-            else:
-                if ball_x == 0:
-                    bounce_to_right = True                    
-                    distance = platform_y - ball_y + 5                                          
-                elif ball_x == 195:
-                    bounce_to_left = True         
-                    distance = platform_y - ball_y + 5                                        
-                                    
-            if bounce_to_right == True:                
-                if distance > platform_x + 35: # go right
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif distance < platform_x + 5: # go left
+                elif(scene_info.platform[0] > x_update):    
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                elif distance >= platform_x + 5 and distance <= platform_x + 35: # stop
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)                    
-            elif bounce_to_left == True:
-                if 200 - distance > platform_x + 35: # go right
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif 200 - distance < platform_x + 5: # go left
+                else:
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)    
+            
+            else:   
+                if(hit_count != 20):
+                    if(x_curr == 0):
+                        y_hit_point = y_curr
+                        if(y_hit_point < 205): # will hit again on the other side
+                            y_hit_point += 195
+                            x_update = 195 - (400 - y_hit_point) - (40 / 2)
+                        else:    
+                            x_update = (400 - y_hit_point) - (40 / 2)
+                        # print(x_update)
+
+                    elif(x_curr == 195):
+                        y_hit_point = y_curr
+                        if(y_hit_point < 205):
+                            y_hit_point += 195
+                            x_update = (400 - y_hit_point) - (40 / 2)
+                        else:    
+                            x_update = 195 - (400 - y_hit_point) - (40 / 2) # bias
+                        # print(x_update)
+
+                    if(x_update < 0):
+                        x_update = 0
+                    elif(x_update > 195):
+                        x_update = 195
+
+                    while(x_update % 5 != 0):
+                        x_update += 1 # for moving plateform smoothly 
+
+                if(scene_info.platform[0] > x_update):
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                elif 200 - distance >= platform_x + 5 and distance <= platform_x + 35: # stop
+                elif(scene_info.platform[0] < x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)  
+                else:
                     comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+
+            x_prev = x_curr
+            y_prev = y_curr   
