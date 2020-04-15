@@ -22,7 +22,7 @@ def ml_loop():
     ball_served = False
     ball_x=100
     ball_y=400
-    dir_x=0
+    x_diff=0
     # 2. Inform the game process that ml process is ready before start the loop.
     comm.ml_ready()
 
@@ -51,29 +51,33 @@ def ml_loop():
             comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_LEFT)
             ball_served = True
         else:
-            if dir_x*(scene_info.ball[0]-ball_x)<0:
-                dir_x=-dir_x
+            if x_diff * (scene_info.ball[0] - ball_x) < 0:
+                x_diff = -x_diff
             else:
-                dir_x=scene_info.ball[0]-ball_x
-            dir_y=scene_info.ball[1]-ball_y
-            ball_x=scene_info.ball[0]
-            ball_y=scene_info.ball[1]
-            if dir_y>0:
-                pla_x=(400-scene_info.ball[1])*(dir_x/dir_y)+scene_info.ball[0]
-                if pla_x>200:
-                    pla_x=200-(pla_x-200)
-                if pla_x<0:
-                    pla_x=0-pla_x    
-                if pla_x>scene_info.platform[0]+40:                   
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif pla_x<scene_info.platform[0]:
+                x_diff = scene_info.ball[0] - ball_x
+                
+            y_diff = scene_info.ball[1] - ball_y
+            ball_x = scene_info.ball[0]
+            ball_y = scene_info.ball[1]
+            
+            if y_diff < 0: #ball up, fix the platform
+                if scene_info.platform[0] > 80:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                else:
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE) 
-            else:             
-                if 80<scene_info.platform[0]:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                elif 80>scene_info.platform[0]:
+                elif scene_info.platform[0] < 80:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT) 
                 else:
                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+                 
+            else: #ball down
+                plat_x = (400 - scene_info.ball[1])*(x_diff/y_diff) + scene_info.ball[0]
+                if plat_x > 200:
+                    plat_x = 400 - plat_x
+                if plat_x < 0:
+                    plat_x = -plat_x    
+                if plat_x > scene_info.platform[0] + 40:                   
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+                elif pla_x < scene_info.platform[0]:
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                else:
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+                 
