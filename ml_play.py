@@ -1,34 +1,28 @@
-"""The template of the main script of the machine learning process
+"""
+The template of the main script of the machine learning process
 """
 
-import arkanoid.communication as comm
-from arkanoid.communication import SceneInfo, GameInstruction
-import numpy as np
-import pickle
-import os
-from sklearn.preprocessing import StandardScaler
+import games.arkanoid.communication as comm
+from games.arkanoid.communication import ( \
+    SceneInfo, GameStatus, PlatformAction
+)
 
 def ml_loop():
-    """The main loop of the machine learning process
-
-    This loop is run in a seperate process, and communicates with the game process.
-
+    """
+    The main loop of the machine learning process
+    This loop is run in a separate process, and communicates with the game process.
     Note that the game process won't wait for the ml process to generate the
-    GameInstrcution. It is possible that the frame of the GameInstruction
+    GameInstruction. It is possible that the frame of the GameInstruction
     is behind of the current frame in the game process. Try to decrease the fps
     to avoid this situation.
     """
 
     # === Here is the execution order of the loop === #
     # 1. Put the initialization code here.
+    ball_served = False
 
     # 2. Inform the game process that ml process is ready before start the loop.
-    filename="predicDirection.sav"
-    filepath = os.path.join(os.path.dirname(__file__), filename)
-    super_sid = pickle.load(open(filepath,'rb'))
     comm.ml_ready()
-    last_x = 0
-    last_y = 0
 
     # 3. Start an endless loop.
     while True:
@@ -36,21 +30,92 @@ def ml_loop():
         scene_info = comm.get_scene_info()
 
         # 3.2. If the game is over or passed, the game process will reset
-        #      the scene immediately and send the scene information again.
-        #      Therefore, receive the reset scene information.
-        #      You can do proper actions, when the game is over or passed.
-        if scene_info.status == SceneInfo.STATUS_GAME_OVER or \
-            scene_info.status == SceneInfo.STATUS_GAME_PASS:
-            scene_info = comm.get_scene_info()
+        #      the scene and wait for ml process doing resetting job.
+        if scene_info.status == GameStatus.GAME_OVER or \
+            scene_info.status == GameStatus.GAME_PASS:
+            # Do some stuff if needed
+            ball_served = False
 
-        inp = [[scene_info.ball[0], scene_info.ball[1], last_x, last_y, scene_info.platform[0]]]
+            # 3.2.1. Inform the game process that ml process is ready
+            comm.ml_ready()
+            continue
+
         # 3.3. Put the code here to handle the scene information
+
         # 3.4. Send the instruction for this frame to the game process
-        if super_sid.predict(inp) == 1:
-            comm.send_instruction(scene_info.frame, GameInstruction.CMD_RIGHT)
-        elif super_sid.predict(inp) == -1:
-            comm.send_instruction(scene_info.frame, GameInstruction.CMD_LEFT)
+        if not ball_served:
+            comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_RIGHT)
+            ball_served = True
+
+            x_prev = scene_info.ball[0]
+            y_prev = scene_info.ball[1]
+            x_update = 10
+            hit_count = -1
+
         else:
-            comm.send_instruction(scene_info.frame, GameInstruction.CMD_NONE)
-        last_x = scene_info.ball[0]
-        last_y = scene_info.ball[1]
+            x_curr = scene_info.ball[0]
+            y_curr = scene_info.ball[1]
+
+            if(y_curr == scene_info.platform[1] - 5):
+                hit_count += 1
+                if(hit_count == 11):
+                    x_update = 160
+                if(hit_count == 15):
+                    x_update = 80
+                if(hit_count == 18):
+                    x_update = 30
+                if(hit_count == 19):
+                    x_update = 50
+                if(hit_count == 20):
+                    x_update = 100
+                if(hit_count == 21):
+                    x_update = 150
+                if(hit_count == 28):
+                    x_update = 150
+                    
+            elif(y_curr < 10 or y_curr - y_prev < 0): # do not move when ball is up there breaking bricks.
+                
+                if(scene_info.platform[0] < x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+                elif(scene_info.platform[0] > x_update):    
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                else:
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)    
+            
+            else:   
+                if(hit_count != 20):
+                    if(x_curr == 0):
+                        y_hit_point = y_curr
+                        if(y_hit_point < 205): # will hit again on the other side
+                            y_hit_point += 195
+                            x_update = 195 - (400 - y_hit_point) - (40 / 2)
+                        else:    
+                            x_update = (400 - y_hit_point) - (40 / 2)
+                        # print(x_update)
+
+                    elif(x_curr == 195):
+                        y_hit_point = y_curr
+                        if(y_hit_point < 205):
+                            y_hit_point += 195
+                            x_update = (400 - y_hit_point) - (40 / 2)
+                        else:    
+                            x_update = 195 - (400 - y_hit_point) - (40 / 2) # bias
+                        # print(x_update)
+
+                    if(x_update < 0):
+                        x_update = 0
+                    elif(x_update > 195):
+                        x_update = 195
+
+                    while(x_update % 5 != 0):
+                        x_update += 1 # for moving plateform smoothly 
+
+                if(scene_info.platform[0] > x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                elif(scene_info.platform[0] < x_update):
+                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)  
+                else:
+                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+
+            x_prev = x_curr
+            y_prev = y_curr
