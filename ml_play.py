@@ -61,14 +61,14 @@ def ml_loop():
             ball_y = scene_info.ball[1]
             
             if y_diff > 0: #ball down
-                plat_x = (400 - scene_info.ball[1])*(x_diff/y_diff) + scene_info.ball[0]
-                if plat_x > 200:
-                    plat_x = 400 - plat_x
-                if plat_x < 0:
-                    plat_x = -plat_x    
-                if plat_x > scene_info.platform[0] + 40:                   
+                platform_x = (400 - scene_info.ball[1])*(x_diff/y_diff) + scene_info.ball[0]
+                if platform_x > 200:
+                    platform_x = 400 - platform_x
+                if platform_x < 0:
+                    platform_x = -platform_x    
+                if platform_x > scene_info.platform[0] + 40:                   
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                elif pla_x < scene_info.platform[0]:
+                elif platform_x < scene_info.platform[0]:
                     comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 else:
                     comm.send_instruction(scene_info.frame, PlatformAction.NONE) 
